@@ -12,7 +12,7 @@ jobs:
     - name: Setup workspace
       run: |
         sudo apt-get update
-        sudo apt-get install build-essential bison flex libelf-dev libssl-dev fakeroot
+        sudo apt-get install ccache
     - name: Setup toolchain
       run: |
         wget https://releases.linaro.org/components/toolchain/binaries/latest-7/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
