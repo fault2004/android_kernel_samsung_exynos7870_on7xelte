@@ -12,14 +12,14 @@ jobs:
     - name: Setup workspace
       run: |
         sudo apt-get update
-        sudo apt-get install ccache
+        sudo apt-get install ccache abootimg
     - name: Setup toolchain
       run: |
         wget https://releases.linaro.org/components/toolchain/binaries/latest-7/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
         tar xf gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
         rm gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
         mv gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu toolchain
-    - name: Build Kernel
+    - name: Build kernel
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=$(pwd)/toolchain/bin/aarch64-linux-gnu-
@@ -28,9 +28,22 @@ jobs:
 
         make O=./out exynos7870-on7xelte_defconfig
         make O=./out -j$(nproc)
-    - name: Moveout kernel
+    - name: Build image
       run: |
-        mv out/arch/arm64/boot/Image .
-        mv out/arch/arm64/boot/Image.gz-dtb .
-        file Image.gz-dtb
-        file Image
+        mv out/arch/arm64/boot/Image zImage
+        
+        abootimg --create boot.img -k zImage -r initrd.img \
+          -c "bootsize=0x12f7810" \
+          -c "pagesize=0x800" \
+          -c "kerneladdr=0x10008000" \
+          -c "ramdiskaddr=0x11000000" \
+          -c "secondaddr=0x10f00000" \
+          -c "tagsaddr=0x10000100" 
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ inputs.artifact }}
+        path: |
+          boot.img
+        retention-days: ${{ inputs.retention }}
+        
