@@ -28,7 +28,9 @@ jobs:
 
         make O=./out exynos7870-on7xelte_defconfig
         make O=./out -j$(nproc)
-    - name: Move kernel
+    - name: Moveout kernel
       run: |
+        pwd
+        ls /home/runner/work/android_kernel_samsung_exynos7870_on7xelte/android_kernel_samsung_exynos7870_on7xelte/arch/arm64/boot
         mv arch/arm64/boot/Image.gz-dtb .
         file Image.gz-dtb
