@@ -42,8 +42,8 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ inputs.artifact }}
+        name: boot.img
         path: |
           boot.img
-        retention-days: ${{ inputs.retention }}
+        retention-days: 12
         
