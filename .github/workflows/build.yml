@@ -30,5 +30,7 @@ jobs:
         make O=./out -j$(nproc)
     - name: Moveout kernel
       run: |
+        mv out/arch/arm64/boot/Image .
         mv out/arch/arm64/boot/Image.gz-dtb .
         file Image.gz-dtb
+        file Image
