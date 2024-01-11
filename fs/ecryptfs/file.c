@@ -388,7 +388,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 #ifdef CONFIG_SDP
 	if (crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE) {
 #ifdef CONFIG_SDP_KEY_DUMP
-		if (S_ISREG(ecryptfs_dentry->d_inode->i_mode)) {
+	if (S_ISREG(ecryptfs_dentry->d_inode->i_mode)) {
 			if(get_sdp_sysfs_key_dump()) {
 				printk("FEK[%s] : ", ecryptfs_dentry->d_name.name);
 				key_dump(crypt_stat->key, 32);
