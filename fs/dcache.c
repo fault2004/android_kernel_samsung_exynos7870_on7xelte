@@ -40,6 +40,9 @@
 #include <linux/list_lru.h>
 #include "internal.h"
 #include "mount.h"
+#ifdef CONFIG_RKP_NS_PROT
+u8 ns_prot = 0;
+#endif
 
 /*
  * Usage:
@@ -79,7 +82,7 @@
  *   dentry1->d_lock
  *     dentry2->d_lock
  */
-int sysctl_vfs_cache_pressure __read_mostly = 100;
+int sysctl_vfs_cache_pressure __read_mostly = 50;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
@@ -1885,7 +1888,6 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
 	BUG_ON(!inode);
 	lockdep_annotate_inode_mutex_key(inode);
-	security_d_instantiate(entry, inode);
 	spin_lock(&inode->i_lock);
 	__d_instantiate(entry, inode);
 	WARN_ON(!(inode->i_state & I_NEW));
@@ -1893,6 +1895,7 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	smp_mb();
 	wake_up_bit(&inode->i_state, __I_NEW);
 	spin_unlock(&inode->i_lock);
+	security_d_instantiate(entry, inode);
 }
 EXPORT_SYMBOL(d_instantiate_new);
 
@@ -2977,7 +2980,11 @@ restart:
 			if (mnt != parent) {
 				dentry = ACCESS_ONCE(mnt->mnt_mountpoint);
 				mnt = parent;
+#ifdef CONFIG_RKP_NS_PROT
+				vfsmnt = mnt->mnt;
+#else
 				vfsmnt = &mnt->mnt;
+#endif
 				continue;
 			}
 			if (!error)
@@ -3156,7 +3163,7 @@ char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
 			const char *fmt, ...)
 {
 	va_list args;
-	char temp[64];
+	char temp[256];
 	int sz;
 
 	va_start(args, fmt);
@@ -3485,10 +3492,8 @@ EXPORT_SYMBOL(d_genocide);
 
 void __init vfs_caches_init_early(void)
 {
-	set_memsize_kernel_type(MEMSIZE_KERNEL_VFSHASH);
 	dcache_init_early();
 	inode_init_early();
-	set_memsize_kernel_type(MEMSIZE_KERNEL_OTHERS);
 }
 
 void __init vfs_caches_init(unsigned long mempages)
@@ -3510,6 +3515,9 @@ void __init vfs_caches_init(unsigned long mempages)
 	mnt_init();
 	bdev_cache_init();
 	chrdev_init();
+#ifdef CONFIG_RKP_NS_PROT
+	ns_prot = 1;
+#endif
 }
 
 void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry)
