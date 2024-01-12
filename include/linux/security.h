@@ -44,7 +44,6 @@ struct file;
 struct vfsmount;
 struct path;
 struct qstr;
-struct nameidata;
 struct iattr;
 struct fown_struct;
 struct file_operations;
@@ -54,6 +53,13 @@ struct msg_queue;
 struct xattr;
 struct xfrm_sec_ctx;
 struct mm_struct;
+
+#ifdef CONFIG_RKP_KDP
+/* For understand size of struct cred*/
+#include <linux/rkp_entry.h>
+#endif /*CONFIG_RKP_KDP*/
+
+
 
 /* If capable should audit the security request */
 #define SECURITY_CAP_NOAUDIT 0
@@ -66,6 +72,38 @@ struct ctl_table;
 struct audit_krule;
 struct user_namespace;
 struct timezone;
+
+#ifdef CONFIG_RKP_KDP
+
+#define rocred_uc_read(x) atomic_read(x->use_cnt)
+#define rocred_uc_inc(x)  atomic_inc(x->use_cnt)
+#define rocred_uc_dec_and_test(x) atomic_dec_and_test(x->use_cnt)
+#define rocred_uc_inc_not_zero(x) atomic_inc_not_zero(x->use_cnt)
+#define rocred_uc_set(x,v) atomic_set(x->use_cnt,v)
+
+#define RKP_RO_AREA __attribute__((section (".rkp.prot.page")))
+extern int rkp_cred_enable;
+extern char __rkp_ro_start[], __rkp_ro_end[];
+extern struct cred init_cred;
+extern struct task_security_struct init_sec;
+/*Check whether the address belong to Cred Area*/
+static inline u8 rkp_ro_page(unsigned long addr)
+{
+	if(!rkp_cred_enable)
+		return (u8)0;
+	if((addr == ((unsigned long)&init_cred)) || 
+		(addr == ((unsigned long)&init_sec)))
+		return (u8)1;
+	else
+		return rkp_is_pg_protected(addr);
+}
+extern int security_integrity_current(void);
+
+#else
+#define RKP_RO_AREA   
+#define security_integrity_current()  0
+#endif /*CONFIG_RKP_KDP*/
+
 
 /* These functions are in security/commoncap.c */
 extern int cap_capable(const struct cred *cred, struct user_namespace *ns,
@@ -108,8 +146,6 @@ struct xfrm_policy;
 struct xfrm_state;
 struct xfrm_user_sec_ctx;
 struct seq_file;
-
-extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
 
 #ifdef CONFIG_MMU
 extern unsigned long mmap_min_addr;
@@ -470,7 +506,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @inode_follow_link:
  *	Check permission to follow a symbolic link when looking up a pathname.
  *	@dentry contains the dentry structure for the link.
- *	@nd contains the nameidata structure for the parent directory.
  *	Return 0 if permission is granted.
  * @inode_permission:
  *	Check permission before accessing an inode.  This hook is called by the
@@ -1431,7 +1466,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@ctxlen points to the place to put the length of @ctx.
  * This is the main security structure.
  */
-
 /* prototypes */
 extern int security_init(void);
 
@@ -1507,7 +1541,7 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry,
 			  unsigned int flags);
 int security_inode_readlink(struct dentry *dentry);
-int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
+int security_inode_follow_link(struct dentry *dentry);
 int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
@@ -1905,8 +1939,7 @@ static inline int security_inode_readlink(struct dentry *dentry)
 	return 0;
 }
 
-static inline int security_inode_follow_link(struct dentry *dentry,
-					      struct nameidata *nd)
+static inline int security_inode_follow_link(struct dentry *dentry)
 {
 	return 0;
 }
@@ -2398,8 +2431,6 @@ int security_tun_dev_attach_queue(void *security);
 int security_tun_dev_attach(struct sock *sk, void *security);
 int security_tun_dev_open(void *security);
 
-void security_skb_owned_by(struct sk_buff *skb, struct sock *sk);
-
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct sock *sock,
 					       struct sock *other,
@@ -2591,11 +2622,6 @@ static inline int security_tun_dev_open(void *security)
 {
 	return 0;
 }
-
-static inline void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
-{
-}
-
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
@@ -2891,4 +2917,3 @@ static inline void free_secdata(void *secdata)
 #endif /* CONFIG_SECURITY */
 
 #endif /* ! __LINUX_SECURITY_H */
-
